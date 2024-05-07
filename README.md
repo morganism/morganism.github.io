@@ -1,2 +1,2 @@
 # morganism.github.io
-the source for morganism.github.io [status]
+The source for morganism.github.io [status]
