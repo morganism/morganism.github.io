@@ -5,21 +5,6 @@
 # This workflow will download a prebuilt Ruby version, install dependencies and run tests with Rake
 # For more information see: https://github.com/marketplace/actions/setup-ruby-jruby-and-truffleruby
 
-
-name: My workflow
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v5
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4' # Not needed with a .ruby-version, .tool-versions or mise.toml
-        bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-    - run: bundle exec rake
-
-
 name: Ruby
 
 on:
