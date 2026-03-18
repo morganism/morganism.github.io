@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>morganism — Repository Tag Cloud</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+/* ── Base ─────────────────────────────────────────────────────── */
+:root {
+  --nav-h:    60px;
+  --stats-h:  42px;
+  --panel-w:  400px;
+  --radius-card: 12px;
+  --c-bg:     #09090f;
+  --c-surface: rgba(22,22,36,0.92);
+  --c-border:  rgba(255,255,255,0.07);
+  --c-text:    #e2e2ee;
+  --c-muted:   #7878a0;
+  --c-accent:  var(--hero, #0A84FF);
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html[data-bs-theme="light"] {
+  --c-bg:     #f5f5f7;
+  --c-surface: rgba(255,255,255,0.9);
+  --c-border:  rgba(0,0,0,0.08);
+  --c-text:    #1d1d1f;
+  --c-muted:   #6e6e80;
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+               'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  height: 100dvh;
+}
+
+/* ── Navbar ────────────────────────────────────────────────────── */
+.glass-nav {
+  height: var(--nav-h);
+  background: rgba(9,9,15,0.80) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid var(--c-border);
+}
+html[data-bs-theme="light"] .glass-nav {
+  background: rgba(245,245,247,0.85) !important;
+}
+
+.brand-owner {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nav-link { color: var(--c-muted) !important; font-size: 0.875rem; }
+.nav-link:hover, .nav-link.active { color: var(--c-text) !important; }
+.nav-link.active { font-weight: 600; }
+
+/* ── Repo dropdown ─────────────────────────────────────────────── */
+.glass-dropdown {
+  background: rgba(14,14,24,0.97) !important;
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--c-border) !important;
+  border-radius: 14px !important;
+  padding: 8px 6px;
+  max-height: 72vh;
+  overflow-y: auto;
+  min-width: 240px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.glass-dropdown .dropdown-item {
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--c-text) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.83rem;
+  transition: background 0.12s;
+}
+.glass-dropdown .dropdown-item:hover  { background: rgba(255,255,255,0.06) !important; }
+.glass-dropdown .dropdown-item.active { background: rgba(10,132,255,0.18) !important; color: #5AC8FA !important; font-weight: 600; }
+.lang-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px currentColor;
+}
+.repo-nav-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Layout ────────────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  height: 100dvh;
+  padding-top: var(--nav-h);
+  padding-bottom: var(--stats-h);
+}
+
+/* ── Sphere panel ──────────────────────────────────────────────── */
+.sphere-panel {
+  flex: 1;
+  min-height: 0;          /* critical: prevents flex child overflowing its parent */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.sphere-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sphere-wrap {
+  /* size relative to the available panel — NOT the full viewport */
+  width:  min(56cqw, 74vh, 680px);
+  height: min(56cqw, 74vh, 680px);
+  container-type: inline-size;
+  perspective: 1200px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+}
+.sphere-wrap:active { cursor: grabbing; }
+.sphere-stage {
+  width: 100%; height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+}
+.sphere {
+  width: 100%; height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.tag-item {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform-style: preserve-3d;
+  white-space: nowrap;
+  cursor: pointer;
+  padding: 2px 10px;
+  border-radius: 50px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: filter 0.15s, border-color 0.15s;
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+  line-height: 1.5;
+}
+.tag-item:hover {
+  filter: brightness(1.5) drop-shadow(0 0 6px currentColor);
+  border-color: rgba(255,255,255,0.25) !important;
+}
+.tag-item.selected {
+  background: rgba(10,132,255,0.35) !important;
+  border-color: #0A84FF !important;
+  color: #fff !important;
+  filter: drop-shadow(0 0 10px #0A84FF88);
+}
+
+.sphere-hint {
+  position: absolute;
+  bottom: 18px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.2);
+  pointer-events: none;
+  letter-spacing: 0.03em;
+}
+
+/* ── Detail panel ──────────────────────────────────────────────── */
+.detail-panel {
+  width: var(--panel-w);
+  min-height: 0;          /* prevents flex overflow */
+  background: var(--c-surface);
+  border-left: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+.detail-empty {
+  flex: 1; display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.detail-content { display: flex; flex-direction: column; height: 100%; }
+
+.detail-header {
+  padding: 20px 20px 0;
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+}
+.tag-headline {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #5AC8FA 0%, #0A84FF 60%, #BF5AF2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.tag-meta {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+  margin-top: 2px;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  padding: 10px 0 0;
+}
+.tab-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--c-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--c-text); }
+.tab-btn.active {
+  background: rgba(10,132,255,0.15);
+  color: #5AC8FA;
+  font-weight: 600;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border) transparent;
+}
+.detail-body::-webkit-scrollbar { width: 4px; }
+.detail-body::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 2px; }
+
+/* Cards ─── */
+.repo-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.repo-card:hover {
+  background: rgba(10,132,255,0.07);
+  border-color: rgba(10,132,255,0.28);
+}
+.repo-card-name { font-weight: 600; font-size: 0.88rem; }
+.repo-card-url  { font-size: 0.72rem; color: #5AC8FA; text-decoration: none; opacity: 0.8; }
+.repo-card-url:hover { opacity: 1; text-decoration: underline; }
+
+.file-card {
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 0.75rem;
+}
+.file-repo { font-size: 0.72rem; color: #5AC8FA; margin-bottom: 2px; font-family: inherit; }
+.file-path { color: var(--c-muted); word-break: break-all; }
+
+.freq-badge {
+  background: rgba(10,132,255,0.18);
+  color: #5AC8FA;
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.freq-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.07);
+  margin-top: 6px;
+  overflow: hidden;
+}
+.freq-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* Language view ─── */
+.lang-row { margin-bottom: 14px; }
+.lang-label { font-weight: 600; font-size: 0.85rem; }
+.lang-meta  { font-size: 0.75rem; color: var(--c-muted); }
+
+/* ── Stats bar ─────────────────────────────────────────────────── */
+.stats-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--stats-h);
+  background: rgba(9,9,15,0.88);
+  border-top: 1px solid var(--c-border);
+  backdrop-filter: blur(20px);
+  z-index: 1030;
+}
+html[data-bs-theme="light"] .stats-bar {
+  background: rgba(245,245,247,0.9);
+}
+.stat-item { font-size: 0.78rem; color: var(--c-muted); white-space: nowrap; }
+
+.lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.lang-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.page-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --panel-w: 100vw; }
+  .app-layout  { flex-direction: column; }
+  .sphere-panel { height: 52dvh; flex: none; }
+  .detail-panel { width: 100%; flex: 1; border-left: none; border-top: 1px solid var(--c-border); }
+  .sphere-wrap  { width: min(80vw, 44vh); height: min(80vw, 44vh); }
+}
+
+  </style>
+</head>
+<body>
+
+  <!-- ── Navigation ──────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg fixed-top glass-nav" aria-label="main navigation">
+    <div class="container-fluid px-4">
+
+      <a class="navbar-brand" href="morganism_tag_cloud.html">
+        <i class="bi bi-tags-fill me-2" style="color:#0A84FF"></i>
+        <span class="brand-owner">morganism</span>
+      </a>
+
+      <button class="navbar-toggler border-0" type="button"
+              data-bs-toggle="collapse" data-bs-target="#navbarMain">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarMain">
+        <ul class="navbar-nav me-auto gap-1">
+          <li class="nav-item">
+            <a class="nav-link active" href="morganism_tag_cloud.html">
+              <i class="bi bi-globe2 me-1"></i>All Repos
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-folder2-open me-1"></i>Repositories
+              <span class="badge bg-secondary ms-1 rounded-pill">2</span>
+            </a>
+            <div class="dropdown-menu dropdown-menu-dark glass-dropdown">
+              <a class="dropdown-item " href="repoA_tag_cloud.html">
+  <span class="lang-dot" style="background:#888" title=""></span>
+  <span class="repo-nav-name">repoA</span>
+  <span class="ms-auto text-muted small">2f</span>
+</a>
+
+<a class="dropdown-item " href="repoB_tag_cloud.html">
+  <span class="lang-dot" style="background:#888" title=""></span>
+  <span class="repo-nav-name">repoB</span>
+  <span class="ms-auto text-muted small">2f</span>
+</a>
+
+            </div>
+          </li>
+        </ul>
+
+        <div class="d-flex align-items-center gap-3 py-2 py-lg-0">
+          <div class="page-title-block text-end d-none d-lg-block">
+            <div class="page-title">2 repositories</div>
+            
+          </div>
+          <div class="btn-group btn-group-sm" role="group" aria-label="controls">
+            <button class="btn btn-outline-secondary" id="btnSpin"
+                    onclick="Sphere.toggleSpin()" title="Toggle auto-spin">
+              <i class="bi bi-arrow-repeat"></i>
+            </button>
+            <button class="btn btn-outline-secondary"
+                    onclick="Sphere.resetOrientation()" title="Reset orientation">
+              <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+            <button class="btn btn-outline-secondary"
+                    onclick="UI.toggleTheme()" title="Toggle theme">
+              <i class="bi bi-circle-half"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main two-column layout ───────────────────────────────── -->
+  <div class="app-layout">
+
+    <!-- Left: 3-D sphere -->
+    <section class="sphere-panel" id="spherePanel" aria-label="Tag cloud sphere">
+      <div class="sphere-glow" style="background:radial-gradient(ellipse,#0A84FF18 0%,transparent 68%)"></div>
+      <div class="sphere-wrap" id="sphereWrap">
+        <div class="sphere-stage" id="sphereStage">
+          <div class="sphere" id="tagSphere"></div>
+        </div>
+      </div>
+      <p class="sphere-hint">
+        <i class="bi bi-hand-index-thumb me-1"></i>Drag to spin &nbsp;·&nbsp; Click a tag to explore
+      </p>
+    </section>
+
+    <!-- Right: detail panel -->
+    <aside class="detail-panel" id="detailPanel" aria-label="Tag detail">
+      <div class="detail-empty" id="detailEmpty">
+        <i class="bi bi-tags display-3 text-secondary opacity-25"></i>
+        <p class="mt-3 text-muted">Click any tag to explore</p>
+      </div>
+      <div class="detail-content d-none" id="detailContent">
+        <div class="detail-header" id="detailHeader"></div>
+        <div class="detail-body" id="detailBody"></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ── Stats bar ─────────────────────────────────────────────── -->
+  <footer class="stats-bar" role="contentinfo">
+    <div class="container-fluid px-4 d-flex align-items-center gap-3 h-100 overflow-hidden">
+  <span class='stat-item'><i class='bi bi-folder me-1 text-info'></i><b>2</b> repos</span><span class='stat-item'><i class='bi bi-tag me-1 text-info'></i><b>43</b> tags</span><span class='stat-item'><i class='bi bi-code me-1 text-info'></i><b>65</b> lines</span>
+  <span class="flex-grow-1 d-none d-md-flex gap-2 flex-wrap"></span>
+  <span class="stat-item text-muted opacity-50 ms-auto small">2026-03-18 04:02</span>
+</div>
+
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ── Data injected by Ruby ──────────────────────────────────
+    const TAG_DATA    = [{"word":"middleware","frequency":9,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":9}],"files":[{"path":"server.py","repo":"repoB","freq":8,"lang":null},{"path":"router.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"token","frequency":9,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":9}],"files":[{"path":"main.rb","repo":"repoA","freq":9,"lang":null}],"langs":[]},{"word":"password","frequency":7,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":7}],"files":[{"path":"main.rb","repo":"repoA","freq":7,"lang":null}],"langs":[]},{"word":"authentication","frequency":5,"repo_count":2,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3},{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2}],"files":[{"path":"server.py","repo":"repoB","freq":3,"lang":null},{"path":"main.rb","repo":"repoA","freq":2,"lang":null}],"langs":[]},{"word":"connection","frequency":5,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":5}],"files":[{"path":"database.rb","repo":"repoA","freq":5,"lang":null}],"langs":[]},{"word":"request","frequency":5,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":5}],"files":[{"path":"server.py","repo":"repoB","freq":3,"lang":null},{"path":"router.py","repo":"repoB","freq":2,"lang":null}],"langs":[]},{"word":"pool","frequency":4,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":4}],"files":[{"path":"database.rb","repo":"repoA","freq":4,"lang":null}],"langs":[]},{"word":"async","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"server.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"chain","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"server.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"conn","frequency":3,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":3}],"files":[{"path":"database.rb","repo":"repoA","freq":3,"lang":null}],"langs":[]},{"word":"database","frequency":3,"repo_count":2,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2},{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"database.rb","repo":"repoA","freq":2,"lang":null},{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"handler","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"router.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"host","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"server.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"methods","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"router.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"port","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"server.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"router","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"server.py","repo":"repoB","freq":2,"lang":null},{"path":"router.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"routes","frequency":3,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":3}],"files":[{"path":"router.py","repo":"repoB","freq":3,"lang":null}],"langs":[]},{"word":"service","frequency":3,"repo_count":2,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2},{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":2,"lang":null},{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"username","frequency":3,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":3}],"files":[{"path":"main.rb","repo":"repoA","freq":3,"lang":null}],"langs":[]},{"word":"cache","frequency":2,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2}],"files":[{"path":"main.rb","repo":"repoA","freq":2,"lang":null}],"langs":[]},{"word":"generate","frequency":2,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2}],"files":[{"path":"main.rb","repo":"repoA","freq":2,"lang":null}],"langs":[]},{"word":"mutex","frequency":2,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2}],"files":[{"path":"database.rb","repo":"repoA","freq":2,"lang":null}],"langs":[]},{"word":"register","frequency":2,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":2}],"files":[{"path":"router.py","repo":"repoB","freq":1,"lang":null},{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"repo","frequency":2,"repo_count":2,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1},{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":1,"lang":null},{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"response","frequency":2,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":2}],"files":[{"path":"server.py","repo":"repoB","freq":2,"lang":null}],"langs":[]},{"word":"server","frequency":2,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":2}],"files":[{"path":"server.py","repo":"repoB","freq":2,"lang":null}],"langs":[]},{"word":"verify","frequency":2,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":2}],"files":[{"path":"main.rb","repo":"repoA","freq":2,"lang":null}],"langs":[]},{"word":"acquire","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"database.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"active","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"database.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"append","frequency":1,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"asyncio","frequency":1,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"authenticate","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"await","frequency":1,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"connections","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"database.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"handle","frequency":1,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"hex","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"random","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"record","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"database.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"redis","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"release","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"database.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"resolve","frequency":1,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"router.py","repo":"repoB","freq":1,"lang":null}],"langs":[]},{"word":"secure","frequency":1,"repo_count":1,"repos":[{"name":"repoA","url":"https://github.com/morganism/repoA","lang":null,"freq":1}],"files":[{"path":"main.rb","repo":"repoA","freq":1,"lang":null}],"langs":[]},{"word":"web","frequency":1,"repo_count":1,"repos":[{"name":"repoB","url":"https://github.com/morganism/repoB","lang":null,"freq":1}],"files":[{"path":"server.py","repo":"repoB","freq":1,"lang":null}],"langs":[]}];
+    const LANG_COLORS = {"Ruby":"#CC342D","Python":"#3572A5","JavaScript":"#F7DF1E","TypeScript":"#3178C6","Go":"#00ADD8","Rust":"#DEA584","Java":"#B07219","Kotlin":"#A97BFF","Swift":"#FA7343","C":"#555555","C++":"#F34B7D","C#":"#178600","PHP":"#4F5D95","Elixir":"#6E4A7E","Haskell":"#5E5086","Scala":"#C22D40","Clojure":"#5881D8","Erlang":"#B83998","Perl":"#0298C3","Lua":"#000080","Dart":"#00B4AB","R":"#276DC3","Shell":"#89E051","HTML":"#E34C26","CSS":"#663399","Terraform":"#7B42BC","YAML":"#CB171E","Dockerfile":"#384D54"};
+    const HERO_COLOR  = "#0A84FF";
+    const OWNER       = "morganism";
+    // ── Application scripts ────────────────────────────────────
+    'use strict';
+
+// ══════════════════════════════════════════════════════════════════
+// Sphere — CSS3D rotating tag globe
+// Uses Fibonacci sphere distribution for even point cloud coverage
+// ══════════════════════════════════════════════════════════════════
+const Sphere = (() => {
+  let sphereEl, wrapEl;
+  let tagEls    = [];
+  let angleX    = -0.22;
+  let angleY    = 0;
+  let velX      = 0;
+  let velY      = 0.0028;
+  let spinning  = true;
+  let dragging  = false;
+  let prevX     = 0, prevY = 0;
+  let raf       = null;
+  let selectedEl = null;
+
+  // Fibonacci sphere: uniformly distribute N points on unit sphere
+  function fibonacci(n) {
+    const pts  = [];
+    const phi  = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < n; i++) {
+      const y     = 1 - (i / (n - 1)) * 2;
+      const r     = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = phi * i;
+      pts.push({ x: Math.cos(theta) * r, y, z: Math.sin(theta) * r });
+    }
+    return pts;
+  }
+
+  // Frequency range helpers
+  function freqRange() {
+    const freqs = TAG_DATA.map(t => t.frequency);
+    return { min: Math.min(...freqs), max: Math.max(...freqs) };
+  }
+
+  function norm(v, min, max) {
+    return max === min ? 0.5 : (v - min) / (max - min);
+  }
+
+  function tagColor(n) {
+    // Gradient: muted indigo → vivid sky → bright cyan
+    const hue = 230 - n * 50;
+    const sat = 35  + n * 65;
+    const lit = 48  + n * 24;
+    return `hsl(${hue},${sat}%,${lit}%)`;
+  }
+
+  function tagBg(n) {
+    return `rgba(255,255,255,${0.02 + n * 0.04})`;
+  }
+
+  // Build all <span> tag elements and attach them to the sphere DOM node
+  function build() {
+    sphereEl.innerHTML = '';
+    tagEls = [];
+
+    if (!TAG_DATA.length) return;
+
+    const r     = sphereEl.offsetWidth * 0.44;   // matches maxR in project()
+    const pts   = fibonacci(TAG_DATA.length);
+    const range = freqRange();
+
+    TAG_DATA.forEach((tag, i) => {
+      const pt = pts[i];
+      const n  = norm(tag.frequency, range.min, range.max);
+      const sz = (0.62 + n * 1.1).toFixed(2);   // 0.62–1.72rem; tighter range for dense clouds
+
+      const el     = document.createElement('span');
+      el.className = 'tag-item';
+      el.textContent = tag.word;
+      el.dataset.index = i;
+      el.style.fontSize  = sz + 'rem';
+      el.style.color     = tagColor(n);
+      el.style.background = tagBg(n);
+
+      el._ox = pt.x * r;
+      el._oy = pt.y * r;
+      el._oz = pt.z * r;
+
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        UI.showTag(i, el);
+      });
+
+      sphereEl.appendChild(el);
+      tagEls.push(el);
+    });
+
+    project();
+  }
+
+  // Rotate a point (x,y,z) around X then Y axes
+  function rotate(ox, oy, oz) {
+    // Y axis
+    const cy = Math.cos(angleY), sy = Math.sin(angleY);
+    let x =  ox * cy + oz * sy;
+    let z = -ox * sy + oz * cy;
+    let y =  oy;
+    // X axis
+    const cx = Math.cos(angleX), sx = Math.sin(angleX);
+    const ny = y * cx - z * sx;
+    const nz = y * sx + z * cx;
+    return { x, y: ny, z: nz };
+  }
+
+  // Apply CSS transform to every tag based on current rotation.
+  // Tags start at top:50%;left:50% in CSS (already at sphere center).
+  // We only add the 3D-projected OFFSET from that center — never hw/hh.
+  function project() {
+    const persp = 1200;
+    const maxR  = sphereEl.offsetWidth * 0.44;
+
+    tagEls.forEach(el => {
+      const { x, y, z } = rotate(el._ox, el._oy, el._oz);
+      const pScale = persp / (persp - z);          // depth cue for position
+      const tx     = (x * pScale).toFixed(2);
+      const ty     = (y * pScale).toFixed(2);
+      const depth  = (z + maxR) / (maxR * 2);     // 0 (back) → 1 (front)
+      const opac   = (0.18 + depth * 0.82).toFixed(3);
+      const bright = (0.38 + depth * 0.82).toFixed(3);
+
+      // translate(-50%,-50%) centers label on anchor; translate(tx,ty) is
+      // the ONLY positional offset — no scale() to prevent balloon effect
+      el.style.transform = `translate(-50%,-50%) translate(${tx}px,${ty}px)`;
+      el.style.zIndex    = Math.round(pScale * 1000);
+      el.style.opacity   = opac;
+      el.style.filter    = el.classList.contains('selected')
+        ? `brightness(1.8) drop-shadow(0 0 10px ${HERO_COLOR})`
+        : `brightness(${bright})`;
+    });
+  }
+
+  function tick() {
+    if (spinning && !dragging) angleY += velY;
+    if (!dragging) { velX *= 0.92; velY = spinning ? velY : velY * 0.92; }
+    angleX += velX;
+    project();
+    raf = requestAnimationFrame(tick);
+  }
+
+  // ── Pointer events ────────────────────────────────────────────
+  function onDown(e) {
+    dragging = true;
+    const p  = e.touches ? e.touches[0] : e;
+    prevX = p.clientX;
+    prevY = p.clientY;
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const p  = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - prevX;
+    const dy = p.clientY - prevY;
+    velY = dx * 0.004;
+    velX = dy * 0.004;
+    angleY += velY;
+    angleX += velX;
+    prevX = p.clientX;
+    prevY = p.clientY;
+    project();
+  }
+  function onUp() { dragging = false; }
+
+  return {
+    init() {
+      sphereEl = document.getElementById('tagSphere');
+      wrapEl   = document.getElementById('sphereWrap');
+      if (!sphereEl || !TAG_DATA.length) return;
+
+      build();
+      tick();
+
+      wrapEl.addEventListener('mousedown',  onDown);
+      wrapEl.addEventListener('touchstart', onDown, { passive: true });
+      window.addEventListener('mousemove',  onMove);
+      window.addEventListener('touchmove',  onMove, { passive: true });
+      window.addEventListener('mouseup',    onUp);
+      window.addEventListener('touchend',   onUp);
+      window.addEventListener('resize', () => build());
+    },
+
+    toggleSpin() {
+      spinning = !spinning;
+      if (spinning) velY = 0.0028;
+      const btn = document.getElementById('btnSpin');
+      if (btn) btn.classList.toggle('active', spinning);
+    },
+
+    resetOrientation() {
+      angleX = -0.22;
+      angleY = 0;
+      velX   = 0;
+      velY   = spinning ? 0.0028 : 0;
+      if (selectedEl) { selectedEl.classList.remove('selected'); selectedEl = null; }
+      project();
+    },
+
+    setSelected(el) {
+      if (selectedEl) selectedEl.classList.remove('selected');
+      selectedEl = el;
+      if (el) el.classList.add('selected');
+    }
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// UI — detail panel rendering + theme toggle
+// ══════════════════════════════════════════════════════════════════
+const UI = (() => {
+  let activeTag  = null;
+  let activeTab  = 'repos';
+
+  // ── Helpers ───────────────────────────────────────────────────
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function freqBar(val, max, color) {
+    const pct = max > 0 ? Math.round(val / max * 100) : 0;
+    const bg  = color || HERO_COLOR;
+    return `<div class="freq-bar">
+      <div class="freq-bar-fill" style="width:${pct}%;background:${bg}"></div>
+    </div>`;
+  }
+
+  function badge(n) {
+    return `<span class="freq-badge">${Number(n).toLocaleString()}</span>`;
+  }
+
+  // ── Renderers ────────────────────────────────────────────────
+
+  function renderRepos(repos) {
+    if (!repos.length) return emptyState('No repositories found for this tag');
+    const maxF = Math.max(...repos.map(r => r.freq));
+    return repos.map(r => {
+      const lc = LANG_COLORS[r.lang] || '#888';
+      return `
+        <div class="repo-card" role="button"
+             onclick="window.location='${esc(r.name)}_tag_cloud.html'">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="repo-card-name">
+              <span class="lang-dot me-2" style="background:${lc}"></span>${esc(r.name)}
+            </div>
+            ${badge(r.freq)}
+          </div>
+          ${r.url ? `<div class="mt-1"><a class="repo-card-url" href="${esc(r.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(r.url)}</a></div>` : ''}
+          ${freqBar(r.freq, maxF, lc)}
+        </div>`;
+    }).join('');
+  }
+
+  function renderFiles(files) {
+    if (!files.length) return emptyState('No file data available');
+    const maxF = Math.max(...files.map(f => f.freq));
+    return files.map(f => {
+      const lc = LANG_COLORS[f.lang] || '#888';
+      return `
+        <div class="file-card">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <div class="file-repo">${esc(f.repo)}</div>
+              <div class="file-path">${esc(f.path)}</div>
+            </div>
+            ${badge(f.freq)}
+          </div>
+          ${freqBar(f.freq, maxF, lc)}
+        </div>`;
+    }).join('');
+  }
+
+  function renderLangs(langs) {
+    if (!langs.length) return emptyState('No language data available');
+    const maxF = Math.max(...langs.map(l => l.freq));
+    return langs.map(l => {
+      const lc = LANG_COLORS[l.lang] || '#888';
+      return `
+        <div class="lang-row">
+          <div class="d-flex justify-content-between align-items-baseline">
+            <span class="lang-label" style="color:${lc}">${esc(l.lang)}</span>
+            <span class="lang-meta">${l.repos} repo${l.repos !== 1 ? 's' : ''} &nbsp;·&nbsp; ${Number(l.freq).toLocaleString()} uses</span>
+          </div>
+          ${freqBar(l.freq, maxF, lc)}
+        </div>`;
+    }).join('');
+  }
+
+  function emptyState(msg) {
+    return `<div class="text-center py-5 text-muted opacity-50">
+      <i class="bi bi-inbox display-4 d-block mb-2"></i>${esc(msg)}</div>`;
+  }
+
+  function tabContent(tag, tab) {
+    if (tab === 'repos') return renderRepos(tag.repos  || []);
+    if (tab === 'files') return renderFiles(tag.files  || []);
+    if (tab === 'langs') return renderLangs(tag.langs  || []);
+    return '';
+  }
+
+  function setTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    document.getElementById('detailBody').innerHTML = tabContent(activeTag, tab);
+  }
+
+  // Make switchTab accessible from inline onclick attributes
+  window.switchTab = tab => setTab(tab);
+
+  return {
+    showTag(index, el) {
+      const tag = TAG_DATA[index];
+      if (!tag) return;
+      activeTag = tag;
+      Sphere.setSelected(el);
+
+      // Show the content container
+      document.getElementById('detailEmpty').classList.add('d-none');
+      document.getElementById('detailContent').classList.remove('d-none');
+
+      const rc = tag.repos.length;
+      const fc = tag.files.length;
+      const lc = tag.langs.length;
+
+      document.getElementById('detailHeader').innerHTML = `
+        <div class="tag-headline">#${esc(tag.word)}</div>
+        <div class="tag-meta">
+          ${Number(tag.frequency).toLocaleString()} occurrences
+          ${tag.repo_count > 1 ? '&nbsp;·&nbsp; ' + tag.repo_count + ' repos' : ''}
+        </div>
+        <div class="tab-bar" role="tablist">
+          <button class="tab-btn active" data-tab="repos"
+                  onclick="switchTab('repos')" role="tab"
+                  aria-selected="true">
+            <i class="bi bi-folder2 me-1"></i>Repos&nbsp;<span class="opacity-60">${rc}</span>
+          </button>
+          <button class="tab-btn" data-tab="files"
+                  onclick="switchTab('files')" role="tab">
+            <i class="bi bi-file-code me-1"></i>Files&nbsp;<span class="opacity-60">${fc}</span>
+          </button>
+          <button class="tab-btn" data-tab="langs"
+                  onclick="switchTab('langs')" role="tab">
+            <i class="bi bi-pie-chart me-1"></i>Languages&nbsp;<span class="opacity-60">${lc}</span>
+          </button>
+        </div>`;
+
+      activeTab = 'repos';
+      document.getElementById('detailBody').innerHTML = tabContent(tag, 'repos');
+    },
+
+    toggleTheme() {
+      const root = document.documentElement;
+      root.dataset.bsTheme = root.dataset.bsTheme === 'dark' ? 'light' : 'dark';
+    }
+  };
+})();
+
+// ── Boot ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.documentElement.style.setProperty('--hero', HERO_COLOR);
+  Sphere.init();
+});
+
+  </script>
+
+</body>
+</html>
